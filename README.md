@@ -20,14 +20,14 @@ Every number in these skills was measured on the Xcode 27.1 Duo simulator, or is
 
 ## Install
 
-```bash
-# as a plugin marketplace (from a clone or a git URL)
-/plugin marketplace add <path-or-git-url>
-/plugin install iphone-duo-react-native@iphone-duo-react-native
+In Claude Code:
 
-# or try it for one session
-claude --plugin-dir /path/to/iphone-duo-react-native
 ```
+/plugin marketplace add danielsamotys/claude-skills-iphone-duo
+/plugin install iphone-duo-react-native@iphone-duo-react-native
+```
+
+Or try it for one session from a clone: `claude --plugin-dir /path/to/claude-skills-iphone-duo`.
 
 Requirements: macOS with Xcode; Xcode 27.1+ (side by side is fine) for the real Duo pass; [Maestro](https://maestro.mobile.dev) and Java 17+ to drive the app; Accessibility access for your terminal so `duo-pose.sh` can click Device Hub's pose buttons.
 
@@ -47,3 +47,7 @@ skills/
 - Split View can't be reached on the Xcode 27.1 simulator; it needs a device.
 - Hinge-angle and posture APIs have no React Native binding yet; the skills don't cover them.
 - Expo SDK ≤ 57 needs the SDK 58 upgrade for UIScene; there's no plugin for older SDKs.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
