@@ -1,0 +1,11 @@
+{
+  "name": "iphone-duo-react-native",
+  "owner": { "name": "OWNER" },
+  "plugins": [
+    {
+      "name": "iphone-duo-react-native",
+      "source": "./",
+      "description": "Audit, fix and verify React Native / Expo apps for iPhone Duo (Apple's foldable)."
+    }
+  ]
+}

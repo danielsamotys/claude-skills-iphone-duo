@@ -1,0 +1,30 @@
+# Open a React Navigation drawer item and wait for the drawer to close. Run it on the CLOSED (outer) display.
+# Composable: call it from your own flow after launching the app and dismissing launch dialogs:
+#   - runFlow:
+#       file: open-drawer-item.yaml
+#       env: { APP_ID: com.example.app, MENU: "7%,6%", ITEM: "Settings" }
+# MENU = the hamburger as a point; it usually has no text, so read its bounds from `maestro --device <UDID> hierarchy`.
+# ITEM = the drawer label. "Close drawer" is the accessibility label of React Navigation's drawer overlay.
+# Every tap is retried: on the Duo simulator, XCTest-synthesized taps are sometimes dropped (manual clicks are not).
+appId: ${APP_ID}
+---
+- repeat:
+    times: 3
+    while:
+      notVisible: ${ITEM}
+    commands:
+      - tapOn:
+          point: ${MENU}
+      - waitForAnimationToEnd
+- repeat:
+    times: 3
+    while:
+      visible: "Close drawer"
+    commands:
+      - tapOn:
+          text: ${ITEM}
+          optional: true      # the drawer may already be closing
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    notVisible: "Close drawer"
+    timeout: 10000

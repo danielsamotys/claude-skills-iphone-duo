@@ -1,0 +1,6 @@
+{
+  "name": "iphone-duo-react-native",
+  "version": "0.1.0",
+  "description": "Make React Native and Expo apps work on iPhone Duo, Apple's foldable: a readiness audit, adaptive-layout fix recipes, and a verification pass on the Xcode 27.1 Duo simulator.",
+  "keywords": ["react-native", "expo", "ios", "iphone-duo", "foldable", "split-view", "safe-area", "maestro"]
+}
