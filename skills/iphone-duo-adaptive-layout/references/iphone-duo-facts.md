@@ -10,7 +10,8 @@ Everything marked **measured** was measured on the Xcode 27.1 iPhone Duo simulat
 | Points @3x | **466 × 678, measured** (1398 × 2034 px screenshot) | **951 × 669 upright, 669 × 951 rotated, measured** |
 | Size class, portrait | compact W / regular H (same as every other iPhone) | regular W / regular H (same as iPad) |
 | Size class, landscape | compact W / compact H | regular W / regular H |
-| Portrait-only `UISupportedInterfaceOrientations` | honored; the screen stays portrait | honored by **letterboxing**: the app runs in a centered ~466-wide window with black bars (**measured**). Fix: `iphone-duo-adaptive-layout` → Native orientation |
+| Portrait-only `UISupportedInterfaceOrientations` | honored; the screen stays portrait | **ignored** when the app supports multitasking: the window fills 951×669 / 669×951 (**measured**) |
+| `UIRequiresFullScreen = true` | no visible change | the app keeps its portrait lock, so the Open pose is **letterboxed** into a phone-shaped window with black bars (**measured**). Rotated (portrait) it fills |
 
 - Announced 2026-09-09; ships 2026-10-23 on iOS 27.1.
 - Split View on the inner display can make the window **any** width from roughly 300 to 951 pt, resized continuously. iPhone Mirroring on a Mac does the same.
@@ -18,7 +19,8 @@ Everything marked **measured** was measured on the Xcode 27.1 iPhone Duo simulat
 - Safe-area insets are **asymmetric**. **Measured, closed portrait: `{ top: 0, right: 84, bottom: 34, left: 0 }`**. The status area moves to a right-hand column, so only 382 of the 466 pt are usable. A `SafeAreaView` whose `edges` include `'right'` honors this, and so do stack headers. A custom header that pads only `insets.top` puts its right-hand buttons inside the reserved column. The clock and status glyphs sit in that right-hand column (you won't see them if the app hides the status bar), so check against these numbers, not the picture.
 - A height-based "has a notch" check (`height >= 812`, `react-native-iphone-x-helper`, …) is **false** on the closed Duo (678 pt tall), so the home-indicator padding is dropped. Derive it from the bottom inset instead.
 - `Platform.isPad` is `false` on the Duo. `UIScreen.main` is ambiguous with two screens, and it is deprecated.
-- `UIRequiresFullScreen = true` opts out of Split View, as on iPad, but the app **still resizes** on fold and unfold.
+- `UIRequiresFullScreen = true` opts out of Split View, as on iPad, and is what letterboxes the Open pose. The app still resizes on fold and unfold. Deleting the key is the whole orientation fix; keep the portrait list for phones.
+- The inner display also reports a right inset: the clock sits top right and covers a header button padded only at the top (seen in the README screenshots).
 - Hinge and posture, `ReservedRegion` (`.division` = the fold, `.occlusion` = the camera) and vertical toolbars are iOS 27.1 native APIs with **no React Native binding**. Community modules exist (`@jusev/react-native-fold`, `react-native-foldable`); they are unverified.
 
 ## Build / SDK tiers
@@ -40,7 +42,7 @@ Check with `xcrun --sdk iphoneos --show-sdk-version`; you need `27.1`. **Measure
 - There is no React Native core fold or posture API yet (still an open PR). Width is the only cross-platform signal.
 - `react-native-safe-area-context` reports the real asymmetric insets. Use `useSafeAreaInsets()` and apply each edge separately. The core RN `SafeAreaView` is iOS-only and legacy.
 - In Split View a visible app can be `AppState === 'inactive'`. Pause media and timers on `'background'` only.
-- **Expo:** the **SDK 58** prebuild template already adopts UIScene (`SceneDelegate: ExpoAppSceneDelegate`; checked on 58.0.17); SDK 57 does not. `app.json` `"orientation": "portrait"` writes the portrait lock into Info.plist, which letterboxes the inner display. **Measured:** a blank SDK 58 app plus the `withIphoneDuoOrientation` plugin, built with Xcode 27.1, fills 951×669 open and 669×951 rotated, and comes back portrait at 466×678 when folded while rotated.
+- **Expo:** the **SDK 58** prebuild template already adopts UIScene (`SceneDelegate: ExpoAppSceneDelegate`; checked on 58.0.17); SDK 57 does not. **Measured on a blank SDK 58 app built with Xcode 27.1:** with `"orientation": "portrait"` and Expo's default `UIRequiresFullScreen = false`, it fills 951×669 open and 669×951 rotated, and stays portrait closed, with no plugin. With `ios.requireFullScreen: true` the Open pose is letterboxed.
 
 ## Simulator
 

@@ -73,12 +73,12 @@ Use `useSafeAreaInsets()` and apply `top`, `bottom`, `left` and `right` separate
 - **"Has a home indicator" helpers** (`isIphoneX`, `hasNotch`, `height >= 812`): fix the **definition**, not every consumer: `Platform.OS === 'ios' && (initialWindowMetrics?.insets.bottom ?? 0) > 0`, from `react-native-safe-area-context`. That keeps every phone identical and makes the closed Duo (678 pt tall) correct. The library's jest mock reports zero insets, so give the mocked `initialWindowMetrics` a bottom inset of 34, or every footer snapshot flips.
 - Replacing an `isIphoneX ? N : M` in a **shared component** → `Math.max(insets.bottom, M)`. That stays within a few points of today and doesn't double-pad under a parent `SafeAreaView`. In new code or a single screen, use `insets.bottom + M` (M = the design's padding, 16 if none). Never mirror one side onto the other, and never import `SafeAreaView` from `'react-native'`.
 
-## Native orientation: unlock the inner display, keep phones portrait
+## Native orientation: delete `UIRequiresFullScreen`, keep phones portrait
 
-A portrait-only app is letterboxed on the unfolded display (a centered ~466-wide window with black bars), and an app built with an SDK older than iOS 27.1 is letterboxed regardless. 
+**Measured:** an app that supports multitasking fills the unfolded display even with a portrait-only orientation list, and the closed display keeps the portrait lock. `UIRequiresFullScreen = true` is what letterboxes the Open pose into a phone-shaped window with black bars. An app built with an SDK older than iOS 27.1 is letterboxed regardless (Apple).
 
-- **Bare React Native:** follow `references/native-ios.md`: (1) pod deployment-target clamp, (2) UIScene adoption (an iOS 27 SDK build traps at launch without it), (3) all orientations in Info.plist, with a size-class gate in AppDelegate and a trait-change re-query in SceneDelegate.
-- **Expo:** upgrade to SDK 58+ (its template already adopts UIScene). Staying on SDK ≤ 57 means no iOS 27 SDK build, so the inner display stays letterboxed; the JS fixes still help the closed display and Split View. Then copy `templates/withIphoneDuoOrientation.js` into the app and add it to `app.json` `plugins`. It does step 3 and leaves Android alone, so `"orientation": "portrait"` keeps Android phones locked.
+- **Bare React Native:** follow `references/native-ios.md`: (1) pod deployment-target clamp, (2) UIScene adoption (an iOS 27 SDK build traps at launch without it), (3) delete `UIRequiresFullScreen` from Info.plist. A size-class gate in AppDelegate is needed only if your base orientation list already includes landscape.
+- **Expo:** upgrade to SDK 58+ (its template already adopts UIScene) and leave `ios.requireFullScreen` unset or `false`. Keep `"orientation": "portrait"`. No config plugin is needed. Staying on SDK ≤ 57 means no iOS 27 SDK build, so the inner display stays letterboxed; the JS fixes still help the closed display and Split View.
 
 No orientation library and no JS orientation code.
 
@@ -104,5 +104,5 @@ Don't name `Dimensions.get` or `isIphoneX` in new comments: the audit greps toke
 | A long list as `ScrollView` + `.map` | Hundreds of rows block JS for tens of seconds, so a fold looks "missed". Use `FlatList` (measured: 360 rows, 35 s → 1.5 s) |
 | Padding a `react-native-modal` through `style` and expecting it once | With `avoidKeyboard` it is applied twice; see the modal trap above |
 | `useWindowDimensions` at module scope | Hooks run in components. Module scope is frozen |
-| "Fixing" it by locking orientation natively | A lock letterboxes the inner display. Unlock it per `native-ios.md`; branch on width in JS |
+| "Fixing" it with `UIRequiresFullScreen` or a stronger orientation lock | Full screen is what letterboxes the inner display. Delete the key; branch on width in JS |
 | Treating iPad support (`TARGETED_DEVICE_FAMILY`, `supportsTablet`) as Duo support | The Duo is an iPhone; the iPad flag changes nothing for it |

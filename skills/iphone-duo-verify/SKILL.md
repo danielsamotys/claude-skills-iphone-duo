@@ -103,7 +103,7 @@ For each cell, record the logical W×H printed by `duo-pose.sh shot` and save th
 |---|---|---|---|
 | Closed, portrait | outer | 466×678 | Nothing regressed versus a normal iPhone. **No button, text or input in the right 84 pt**: the closed Duo reports insets `{top: 0, right: 84, bottom: 34}`. Backgrounds, header bars and images may run edge to edge |
 | Closed, landscape | outer | 466×678 | Stays portrait; nothing lost |
-| Open, upright (native landscape) | inner | 951×669 | Letterboxed into a centered ~466-wide window = portrait lock or old SDK, a **failure**. If the audit already found the lock, record the failure, finish the other rows, and hand the lock to `iphone-duo-adaptive-layout` (native-ios.md step 3). Otherwise: wide layout, and sheets and modals are not sized off a stale height |
+| Open, upright (native landscape) | inner | 951×669 | Letterboxed into a phone-shaped window = `UIRequiresFullScreen` or an SDK older than 27.1, a **failure**. If the audit already found it, record the failure, finish the other rows, and hand it to `iphone-duo-adaptive-layout` (native-ios.md step 3). Otherwise: wide layout, and sheets and modals are not sized off a stale height |
 | Open, rotated | inner | 669×951 | Wide layout on; drawer permanent (if adopted); reading content capped and centered; no stretched thumbnails |
 | Partially Open | inner | 951×669 | Same verdict as Open upright |
 | **Fold → unfold → fold on the same screen** | outer (`closed`) → inner, Open upright (`open`) → outer (`refold`) | changes live | Layout follows **without** navigating away; this is the test a module-scope `Dimensions.get` fails. Also unfold while a screen is pushing or loading |

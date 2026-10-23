@@ -15,11 +15,13 @@ G=(--include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' --exclu
 g() { grep -rn "${G[@]}" "$@" "${DIRS[@]}" 2>/dev/null | grep -vE '\.(test|spec)\.[jt]sx?:'; }
 nocomment() { grep -vE ':[0-9]+:[[:space:]]*(//|/?\*)'; }
 count() { g "$@" | nocomment | wc -l | tr -d ' '; }
-ver() { node -p "require(require.resolve('$1/package.json',{paths:[process.cwd()]})).version" 2>/dev/null || echo -; }   # works with hoisted monorepo deps
+# installed version (works with hoisted monorepo deps), else the version declared in package.json, else "-"
+ver() { node -p "require(require.resolve('$1/package.json',{paths:[process.cwd()]})).version" 2>/dev/null ||
+  node -p "const p=require('./package.json');const v={...p.dependencies,...p.devDependencies}['$1'];v?v+' (declared)':'-'" 2>/dev/null || echo -; }
 fc() { [ -f "$2" ] || { echo -; return; }; grep -c -- "$1" "$2"; }   # count matches in one file, "-" if the file is absent
 APPDIR=$(dirname "$(ls ios/*/AppDelegate.* 2>/dev/null | head -1)" 2>/dev/null)
 PLIST=${APPDIR:+$APPDIR/Info.plist}
-EXPO=$(node -p "!!require('./app.json').expo" 2>/dev/null)
+EXPO=$(node -p "const p=require('./package.json');!!({...p.dependencies,...p.devDependencies}).expo" 2>/dev/null)
 
 echo "app: $(pwd)   scanned: ${DIRS[*]}   expo: ${EXPO:-false}   native ios/: ${APPDIR:-none}"
 if [ "$EXPO" = true ]; then
@@ -33,7 +35,7 @@ echo "local Xcode:  $(xcodebuild -version 2>/dev/null | head -1)   iphoneos SDK:
 echo "Duo sim type: $(xcrun simctl list devicetypes 2>/dev/null | grep -ci 'iPhone Duo') (device type known to CoreSimulator; 0 = no Xcode 27.1+ installed)"
 for x in /Applications/Xcode*.app; do [ -d "$x" ] && echo "installed:    $x  Xcode $(defaults read "$x/Contents/Info" CFBundleShortVersionString 2>/dev/null)  iphoneos SDK $(DEVELOPER_DIR=$x/Contents/Developer xcrun --sdk iphoneos --show-sdk-version 2>/dev/null)"; done
 R=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-CI=$(grep -rhoE "xcode-version:.*|runs-on:.*macos[^ ]*|macos-[0-9]+[a-z0-9-]*|xcode: *\"?[0-9.]+" "$R"/.github/workflows "$R"/.circleci "$R"/bitrise.yml "$R"/codemagic.yaml 2>/dev/null | sort -u)
+CI=$(grep -rhoE "xcode-version:.*|runs-on:.*macos[^ ]*|xcode: *\"?[0-9.]+" "$R"/.github/workflows "$R"/.circleci "$R"/bitrise.yml "$R"/codemagic.yaml 2>/dev/null | sort -u)
 echo "${CI:-no macOS CI job found (iOS builds happen locally or on EAS)}" | sed 's/^/CI:           /'
 [ -f eas.json ] && { E=$(grep -oE '"image": *"[^"]+"' eas.json | sort -u); echo "${E:-no image pinned = EAS default image; check which Xcode it ships}" | sed 's/^/EAS:          /'; }
 echo "UIScene lifecycle (iOS 27 SDK builds trap at launch without it): manifest=$(fc UIApplicationSceneManifest "$PLIST") scene-delegate=$(ls "$APPDIR"/*SceneDelegate* 2>/dev/null | wc -l | tr -d ' ')"
@@ -47,12 +49,18 @@ echo "native stacks: createNativeStackNavigator $(count createNativeStackNavigat
 echo "react-native-modal with avoidKeyboard: $(count -E "avoidKeyboard")   (padding passed in its style is applied twice; see adaptive-layout)"
 
 echo; echo "== 3. Native config"
-if [ "$EXPO" = true ]; then node -e "const e=require('./app.json').expo;console.log('app.json orientation:',e.orientation??'(unset = default)','| ios.requireFullScreen:',e.ios?.requireFullScreen??'(unset)','| ios.supportsTablet:',e.ios?.supportsTablet??'(unset)')"; fi
+if [ "$EXPO" = true ]; then
+  if [ -f app.json ] && node -e "process.exit(require('./app.json').expo?0:1)" 2>/dev/null; then
+    node -e "const e=require('./app.json').expo;console.log('app.json orientation:',e.orientation??'(unset = default)','| ios.requireFullScreen:',e.ios?.requireFullScreen??'(unset)','| ios.supportsTablet:',e.ios?.supportsTablet??'(unset)')"
+  fi
+  for f in app.config.js app.config.ts; do [ -f "$f" ] && grep -nE "orientation|requireFullScreen|supportsTablet" "$f" | sed "s|^|$f:|" | head -5; done   # read, never executed
+fi
 if [ -n "$PLIST" ]; then
   for k in UISupportedInterfaceOrientations 'UISupportedInterfaceOrientations~ipad' UIRequiresFullScreen; do
     v=$(plutil -extract "$k" json -o - "$PLIST" 2>/dev/null | sed 's/UIInterfaceOrientation//g'); [ -n "$v" ] && echo "Info.plist $k: $v"
   done
 fi
+echo "(UIRequiresFullScreen true = letterboxed when open; a portrait-only list alone is fine on the inner display)"
 echo "AppDelegate orientation gate: $(fc supportedInterfaceOrientationsFor "$(ls "$APPDIR"/AppDelegate.* 2>/dev/null | head -1)")"
 grep -rn "UIScreen.main" ios --include='*.swift' --include='*.m' --include='*.mm' 2>/dev/null | grep -vE 'ios/(Pods|build)/' | head -5
 

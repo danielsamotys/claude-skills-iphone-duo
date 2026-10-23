@@ -33,11 +33,12 @@ Report the pod clamp only when the script counts offending pods. Recipe: `../iph
 
 **3. Native config.** Report `UIRequiresFullScreen`, the orientations and `UIScreen.main` as found (for Expo, also `app.json` `orientation`), with their *measured* meaning:
 - `UIRequiresFullScreen` opts the app out of Split View, but the app **still resizes** on fold and unfold.
-- A portrait-only `UISupportedInterfaceOrientations` is honored by **letterboxing** the Open and Partially Open poses into a centered ~466-wide window with black bars. That is the first thing a Duo owner sees, so rank it right after the blocker and recommend the orientation recipe in `native-ios.md`.
+- `UIRequiresFullScreen = true` (Expo: `ios.requireFullScreen: true`) **letterboxes** the Open and Partially Open poses into a phone-shaped window with black bars. That is the first thing a Duo owner sees, so rank it right after the blocker; the fix is deleting the key.
+- A portrait-only orientation list on its own is **not** a finding: the inner display ignores it for apps that support multitasking (measured), and phones stay portrait.
 - `UIScreen.main.bounds` in the AppDelegate goes away with UIScene adoption.
-- For Expo, every native fix is `app.json` plus a config plugin; the orientation one ships as `../iphone-duo-adaptive-layout/templates/withIphoneDuoOrientation.js`.
+- For Expo with CNG, every native fix is `app.json` or a config plugin.
 
-Never recommend a stronger lock.
+Never recommend a stronger lock or full screen.
 
 **4. Stale size reads.** The `Dimensions.get` list, grouped by what the user sees: full-screen media, camera or crop; bottom sheets and modals positioned by height; carousels and paging by width; card and thumbnail grids. Call out `Dimensions.get('screen')` separately (it is the display, not the window). Give the count and the fix pattern once, not per file.
 
@@ -59,7 +60,7 @@ Format: `file:line` references, one fix pattern per group, under ~700 words. No 
 
 ## Out of scope (do not recommend)
 
-- `react-native-orientation-locker`, `expo-screen-orientation` locks, or any JS orientation code. In JS, branch on width. The native size-class gate is the recommended fix for item 3.
+- `react-native-orientation-locker`, `expo-screen-orientation` locks, or any JS orientation code. In JS, branch on width.
 - Hinge-angle, `ReservedRegion` or posture native modules: there is no RN binding. They are only worth it after everything above is fixed and there is a product need.
 - iPad flags (`TARGETED_DEVICE_FAMILY`, `supportsTablet`): the Duo is an iPhone.
 
@@ -70,7 +71,7 @@ Format: `file:line` references, one fix pattern per group, under ~700 words. No 
 | "CI is on Xcode 26.x, the SDK is fine" | You need **27.1**. Anything older is letterboxed. It is always the first line |
 | Calling UIScene adoption "unrelated to Duo, separate ticket" | It gates the SDK 27 rebuild, which gates everything else. It belongs in item 1 |
 | "Bump react-native-screens to 4.30 for Duo" | Only if native-stack is used, and check the RN 0.84+ requirement first |
-| Ranking JS orientation checks as the #1 problem | The Info.plist / `app.json` portrait lock *is* a ranked finding (letterbox); JS `isLandscape` branches are not |
-| Writing "the inner display ignores the portrait lock" | Measured: it letterboxes. Say letterbox |
+| Ranking a portrait-only orientation list as the letterbox cause | Measured: only `UIRequiresFullScreen` (or an old SDK) letterboxes. A portrait list is fine |
+| Ranking JS orientation checks as the #1 problem | JS `isLandscape` branches are a minor item, not a blocker |
 | Treating `inactive` as "app hidden" | In Split View the other app has focus; yours is visible and `inactive` |
 | Auditing by hand with ad-hoc greps | Run the script; it is the checklist |

@@ -1,6 +1,6 @@
 # Native iOS changes for iPhone Duo (bare React Native 0.78+ with `RCTReactNativeFactory`; Expo at the end)
 
-There are three changes, in this order. The first two are needed before **any** build with the iOS 27 SDK. The third stops the inner display from being letterboxed. All of it was verified on the Xcode 27.1 Duo simulator in a production React Native 0.83 app. `<App>` is your target folder and `<ModuleName>` is the name passed to `AppRegistry.registerComponent`.
+There are three changes, in this order. The first two are needed before **any** build with the iOS 27 SDK. The third stops the inner display from being letterboxed and is usually one deleted Info.plist key. All of it was verified on the Xcode 27.1 Duo simulator in a production React Native 0.83 app. `<App>` is your target folder and `<ModuleName>` is the name passed to `AppRegistry.registerComponent`.
 
 ## 1. Pod deployment targets (`ios/Podfile`, inside `post_install`)
 
@@ -86,19 +86,19 @@ If your AppDelegate has no `application(_:open:options:)` or `application(_:cont
 
 Smoke test: the app launches, a deep link opens the right screen, and a universal link opens the right screen.
 
-## 3. Orientation: portrait on phones, everything on the inner display
+## 3. Orientation: delete `UIRequiresFullScreen`, keep the portrait list
 
-`Info.plist`: list all four orientations under `UISupportedInterfaceOrientations` and delete `UIRequiresFullScreen`. An app that is not full screen must list all orientations, or App Store validation fails.
+On the iOS 27.1 Duo simulator (**measured**), an app that supports multitasking fills the inner display whatever `UISupportedInterfaceOrientations` says, and the closed display still honors the portrait lock. Only `UIRequiresFullScreen = true` keeps the lock on the inner display, and that letterboxes the Open pose. So the fix is one Info.plist change: delete `UIRequiresFullScreen` (or set it to `false`). Keep the orientation list as it is.
 
-`AppDelegate.swift`:
+If the app also targets iPad, App Store validation wants all four orientations for iPad when the app doesn't require full screen. List them under `UISupportedInterfaceOrientations~ipad`, not in the base key, so phones stay portrait.
+
+**Only if your base key already lists landscape** and phones must still stay portrait, add a size-class gate in `AppDelegate.swift` and keep the `registerForTraitChanges` block from step 2. Without that block UIKit keeps its last answer across a fold, and the closed display came up in landscape after folding while rotated (**measured**):
 
 ```swift
 func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
   window?.traitCollection.horizontalSizeClass == .regular ? .all : .portrait
 }
 ```
-
-Compact width (every phone and the closed Duo) stays portrait, exactly as before. Only the inner display and iPad rotate. The `registerForTraitChanges` block in step 2 is **required**. Without it, UIKit keeps its last answer across a fold: fold while the inner display is rotated, and the phone-size display comes up in landscape (**measured**).
 
 There is no JS change. Screens keep branching on width, never on orientation.
 
@@ -108,6 +108,6 @@ Hand edits to `ios/` are lost on the next prebuild, so everything goes through `
 
 1. **UIScene:** upgrade to **Expo SDK 58+**. Its template ships `SceneDelegate: ExpoAppSceneDelegate` and creates the window there. Don't hand-write a scene plugin for an older SDK.
 2. **Pod clamp:** needed only if the readiness audit counts pods below iOS 15. Add it with a `withPodfile` mod inside `post_install`, after the existing calls.
-3. **Orientation:** copy `../templates/withIphoneDuoOrientation.js` to `plugins/` and add `"./plugins/withIphoneDuoOrientation"` to `app.json` `plugins`. It writes all four orientations, overrides `application(_:supportedInterfaceOrientationsFor:)` in the AppDelegate (the module name stays `"main"`), and adds the trait-change re-query to the SceneDelegate. It throws if the SDK 58 template anchors are missing. It doesn't touch Android, so keep `"orientation": "portrait"` if Android phones must stay portrait. (Android 16 ignores orientation locks on large screens anyway.)
+3. **Orientation:** make sure `ios.requireFullScreen` is unset or `false` (Expo's default). Keep `"orientation": "portrait"`. Nothing else is needed.
 
-Verified: blank SDK 58.0.17 app, `expo prebuild` run twice (the plugin is idempotent), Release build with Xcode 27.1, Duo simulator: 466×678 closed, 951×669 open, 669×951 rotated, and portrait again after folding while rotated.
+Verified: blank SDK 58.0.17 app, Release build with Xcode 27.1, Duo simulator. With the defaults it is 466×678 closed, 951×669 open and 669×951 rotated, and portrait again after folding while rotated. With `requireFullScreen: true` the Open pose is letterboxed.
