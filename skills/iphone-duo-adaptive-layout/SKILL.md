@@ -53,7 +53,7 @@ Resize regression test (one per pattern, not one per file): render the style hoo
 
 ## Wide layout (`isWide`): only these, unless a design says otherwise
 
-- **Reading content** (anything that reads as one vertical stack of text, cards, form fields or list rows: chat, forms, articles, settings, card dashboards): wrap the content **and its input toolbar** in one column with `{ width: '100%', maxWidth: WIDE_BREAKPOINT, alignSelf: 'center' }`, adding `flex: 1` on a `View` or `flexGrow: 1` on a `ScrollView`'s `contentContainerStyle` (`flex: 1` there stops scrolling). If the app has a shared screen wrapper, put the column there once. Maps, full-bleed media and camera views stay full width. Full-screen overlays, modals and loaders stay outside the column so they still cover the window. A modal's own reading content goes in a column inside the modal.
+- **Reading content** (anything that reads as one vertical stack of text, cards, form fields or list rows: chat, forms, articles, settings, card dashboards): wrap the content **and its input toolbar** in one column with `{ width: '100%', maxWidth: WIDE_BREAKPOINT, alignSelf: 'center' }`, adding `flex: 1` on a `View` or `flexGrow: 1` on a `ScrollView`'s `contentContainerStyle` only when the content must fill the height (`flex: 1` there stops scrolling). Put the column on the node that carries the horizontal padding, so the 600 cap includes it. If the app has a shared screen wrapper, put the column there once, then grep for screens that bypass the wrapper (raw `SafeAreaView`) and give each its own column. Maps, full-bleed media, camera views and immersive single-purpose screens (a timer, a counter, a player) stay full width. Full-screen overlays, modals and loaders stay outside the column so they still cover the window. A modal's own reading content goes in a column inside the modal.
 - **Drawer** (React Navigation): set `drawerType: isWide ? 'permanent' : undefined` in the drawer's `screenOptions`. `undefined` keeps the library default. This is usually the highest-leverage single change.
 - **Tile grids only** (photo thumbnails, square cards): `numColumns={isWide ? 2 : 1}` with a `key` that includes the column count, because FlatList can't change `numColumns` in place. Full-width table rows stay single-column; they read fine at 669 pt. Grids that already lay out in fixed columns stay as they are.
 - **Tabs** (React Navigation, expo-router, native tabs): leave them alone. Whether iOS 27.1 stacks a native tab bar vertically on its own is not verified here.
@@ -63,6 +63,7 @@ Resize regression test (one per pattern, not one per file): render the style hoo
 
 Use `useSafeAreaInsets()` and apply `top`, `bottom`, `left` and `right` separately. **Closed portrait measures `{ top: 0, right: 84, bottom: 34, left: 0 }`**, so 382 of the 466 pt are usable. Screens inside `SafeAreaView edges={[…'right']}` and stack headers already handle this. The usual misses:
 
+- **Shared screen wrapper** (`Screen`, `Container`) whose default `edges` omit `'right'`: add `'left', 'right'` to the default once. Side insets are 0 on every other iPhone, so nothing else changes. In a monorepo, every app using the wrapper gets the fix; list the sibling apps in the PR.
 - **Custom absolute headers:** add `paddingLeft: insets.left` and `paddingRight: insets.right` next to the `paddingTop`.
 - **Edge-to-edge scroll content:** put side insets on `contentContainerStyle`. Horizontal carousels inside it still scroll.
 - **A shared modal wrapper:** pad the side insets there once, for every caller. **Trap (`react-native-modal` ≤ 13 with `avoidKeyboard`):** the library applies `style` to **two nested views**, so padding passed in `style` counts twice. Give each view half the inset (`paddingRight: right / 2`) and pin the total in a test that sums `paddingRight` over the rendered host nodes. In a modal:
@@ -77,7 +78,7 @@ Use `useSafeAreaInsets()` and apply `top`, `bottom`, `left` and `right` separate
 A portrait-only app is letterboxed on the unfolded display (a centered ~466-wide window with black bars), and an app built with an SDK older than iOS 27.1 is letterboxed regardless. 
 
 - **Bare React Native:** follow `references/native-ios.md`: (1) pod deployment-target clamp, (2) UIScene adoption (an iOS 27 SDK build traps at launch without it), (3) all orientations in Info.plist, with a size-class gate in AppDelegate and a trait-change re-query in SceneDelegate.
-- **Expo:** upgrade to SDK 58+ (its template already adopts UIScene), then copy `templates/withIphoneDuoOrientation.js` into the app and add it to `app.json` `plugins`. It does step 3 and leaves Android alone, so `"orientation": "portrait"` keeps Android phones locked.
+- **Expo:** upgrade to SDK 58+ (its template already adopts UIScene). Staying on SDK ≤ 57 means no iOS 27 SDK build, so the inner display stays letterboxed; the JS fixes still help the closed display and Split View. Then copy `templates/withIphoneDuoOrientation.js` into the app and add it to `app.json` `plugins`. It does step 3 and leaves Android alone, so `"orientation": "portrait"` keeps Android phones locked.
 
 No orientation library and no JS orientation code.
 
@@ -98,7 +99,7 @@ Don't name `Dimensions.get` or `isIphoneX` in new comments: the audit greps toke
 | Mistake | Fix |
 |---|---|
 | Hardcoding 466 / 669 / 951 anywhere | Only `WIDE_BREAKPOINT`; everything else comes from the hook at render time |
-| A new `maxWidth: 480` / `520` / … per screen | `WIDE_BREAKPOINT` |
+| A new `maxWidth: 480` / `520` / … per screen | `WIDE_BREAKPOINT`. Existing caps on a fixed-column grid or design element are design constants (rung 2); leave them |
 | `StyleSheet.create` inside the component body, rebuilt every render | A style hook with `useMemo(…, [width])` (rung 4) |
 | A long list as `ScrollView` + `.map` | Hundreds of rows block JS for tens of seconds, so a fold looks "missed". Use `FlatList` (measured: 360 rows, 35 s → 1.5 s) |
 | Padding a `react-native-modal` through `style` and expecting it once | With `avoidKeyboard` it is applied twice; see the modal trap above |
